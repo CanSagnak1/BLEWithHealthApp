@@ -15,15 +15,8 @@ struct DevicePickerView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.03, green: 0.03, blue: 0.06),
-                    Color(red: 0.08, green: 0.08, blue: 0.12),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(red: 0.03, green: 0.03, blue: 0.06)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 header
@@ -32,31 +25,13 @@ struct DevicePickerView: View {
                     emptyState
                         .frame(maxHeight: .infinity)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 14) {
-                            ForEach(Array(ble.foundDevices.enumerated()), id: \.element.id) {
-                                index, device in
-                                deviceRow(device)
-                                    .transition(
-                                        .asymmetric(
-                                            insertion: .scale.combined(with: .opacity),
-                                            removal: .opacity
-                                        )
-                                    )
-                                    .animation(
-                                        .spring(response: 0.4, dampingFraction: 0.7).delay(
-                                            Double(index) * 0.05), value: ble.foundDevices.count)
-                            }
-                        }
-                        .padding()
-                    }
+                    deviceList
                 }
             }
         }
         .opacity(showContent ? 1 : 0)
-        .scaleEffect(showContent ? 1 : 0.95)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.3)) {
+            withAnimation(.easeOut(duration: 0.25)) {
                 showContent = true
             }
         }
@@ -67,16 +42,17 @@ struct DevicePickerView: View {
             HStack(spacing: 16) {
                 Button(action: {
                     HapticManager.shared.selection()
-                    withAnimation {
-                        showContent = false
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        dismiss()
-                    }
+                    dismiss()
                 }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.white.opacity(0.6))
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.05))
+                            .frame(width: 44, height: 44)
+
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
                 }
 
                 VStack(spacing: 4) {
@@ -98,81 +74,80 @@ struct DevicePickerView: View {
                         ble.startScanning()
                     }
                 }) {
-                    Image(
-                        systemName: ble.isScanning
-                            ? "stop.circle.fill" : "arrow.clockwise.circle.fill"
-                    )
-                    .font(.system(size: 28))
-                    .foregroundColor(ble.isScanning ? .red : .cyan)
-                    .rotationEffect(.degrees(ble.isScanning ? 360 : 0))
-                    .animation(
-                        ble.isScanning
-                            ? .linear(duration: 2).repeatForever(autoreverses: false)
-                            : .default,
-                        value: ble.isScanning
-                    )
+                    ZStack {
+                        Circle()
+                            .fill(
+                                ble.isScanning ? Color.red.opacity(0.15) : Color.cyan.opacity(0.15)
+                            )
+                            .frame(width: 44, height: 44)
+
+                        Image(systemName: ble.isScanning ? "stop.fill" : "arrow.clockwise")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(ble.isScanning ? .red : .cyan)
+                    }
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .padding(.top, 24)
 
             if ble.isScanning {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     ProgressView()
                         .tint(.cyan)
                         .scaleEffect(0.8)
 
-                    Text("Bluetooth cihazları taranıyor...")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                    Text("Cihazlar taranıyor...")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundColor(.cyan)
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 20)
                 .padding(.vertical, 10)
                 .background(
                     Capsule()
                         .fill(Color.cyan.opacity(0.1))
                 )
-                .transition(.scale.combined(with: .opacity))
             }
         }
         .padding(.bottom, 16)
-        .background(
-            Color.white.opacity(0.03)
-                .overlay(
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.cyan.opacity(0.1), Color.clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                )
-        )
+        .background(Color.white.opacity(0.02))
+    }
+
+    private var deviceList: some View {
+        ScrollView(.vertical, showsIndicators: true) {
+            LazyVStack(spacing: 12) {
+                ForEach(ble.foundDevices, id: \.id) { device in
+                    DeviceRow(
+                        device: device,
+                        isConnected: ble.isConnected
+                            && ble.targetPeripheral?.identifier == device.id
+                    ) {
+                        HapticManager.shared.impact(.medium)
+                        ble.connect(to: device.peripheral)
+                        dismiss()
+                        HapticManager.shared.success()
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .scrollDismissesKeyboard(.immediately)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 28) {
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.cyan.opacity(0.2), Color.blue.opacity(0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.cyan.opacity(0.1))
                     .frame(width: 120, height: 120)
 
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.system(size: 50))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.cyan, .blue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                Image(
+                    systemName: ble.isScanning
+                        ? "antenna.radiowaves.left.and.right"
+                        : "antenna.radiowaves.left.and.right.slash"
+                )
+                .font(.system(size: 48))
+                .foregroundColor(ble.isScanning ? .cyan : .gray)
             }
 
             VStack(spacing: 8) {
@@ -183,9 +158,9 @@ struct DevicePickerView: View {
                 Text(
                     ble.isScanning
                         ? "Yakındaki Bluetooth cihazları taranıyor"
-                        : "Aramayı başlatmak için yenile düğmesine tıklayın"
+                        : "Aramayı başlatmak için butona tıklayın"
                 )
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -201,10 +176,10 @@ struct DevicePickerView: View {
                             .font(.system(size: 16, weight: .semibold))
 
                         Text("Aramayı Başlat")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(.white)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 28)
                     .padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 14)
@@ -216,48 +191,37 @@ struct DevicePickerView: View {
                                 )
                             )
                     )
-                    .shadow(color: Color.cyan.opacity(0.3), radius: 10, y: 5)
                 }
             }
         }
         .padding()
     }
+}
 
-    private func deviceRow(_ device: DiscoveredPeripheral) -> some View {
-        Button(action: {
-            HapticManager.shared.impact(.medium)
-            ble.connect(to: device.peripheral)
-            withAnimation {
-                showContent = false
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                dismiss()
-            }
-            HapticManager.shared.success()
-        }) {
-            HStack(spacing: 16) {
+struct DeviceRow: View {
+    let device: DiscoveredPeripheral
+    let isConnected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.cyan.opacity(0.2), Color.blue.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(isConnected ? Color.green.opacity(0.15) : Color.cyan.opacity(0.15))
                         .frame(width: 50, height: 50)
 
                     Image(systemName: "sensor.fill")
                         .font(.system(size: 22))
-                        .foregroundColor(.cyan)
+                        .foregroundColor(isConnected ? .green : .cyan)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(device.name)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
 
-                    Text(device.peripheral.identifier.uuidString.prefix(18) + "...")
+                    Text(String(device.peripheral.identifier.uuidString.prefix(18)) + "...")
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundColor(.white.opacity(0.4))
                         .lineLimit(1)
@@ -265,19 +229,19 @@ struct DevicePickerView: View {
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 8) {
+                VStack(alignment: .trailing, spacing: 6) {
                     if let rssi = device.rssi {
-                        signalStrengthIndicator(rssi.intValue)
+                        SignalStrengthView(rssi: rssi.intValue)
                     }
 
-                    if ble.isConnected && ble.targetPeripheral?.identifier == device.id {
+                    if isConnected {
                         HStack(spacing: 4) {
                             Circle()
                                 .fill(Color.green)
                                 .frame(width: 6, height: 6)
 
                             Text("Bağlı")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundColor(.green)
                         }
                         .padding(.horizontal, 8)
@@ -301,37 +265,38 @@ struct DevicePickerView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: 18)
                     .stroke(
-                        ble.isConnected && ble.targetPeripheral?.identifier == device.id
-                            ? LinearGradient(
-                                colors: [Color.green.opacity(0.5), Color.green.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                            : LinearGradient(
-                                colors: [Color.white.opacity(0.1), Color.white.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                        lineWidth: 1.5
+                        isConnected ? Color.green.opacity(0.4) : Color.white.opacity(0.08),
+                        lineWidth: 1
                     )
             )
-            .shadow(
-                color: ble.isConnected && ble.targetPeripheral?.identifier == device.id
-                    ? Color.green.opacity(0.2)
-                    : Color.clear,
-                radius: 8,
-                y: 4
-            )
         }
+        .buttonStyle(DeviceButtonStyle())
+    }
+}
+
+struct DeviceButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+struct SignalStrengthView: View {
+    let rssi: Int
+
+    private var strength: Int {
+        rssi > -60 ? 3 : rssi > -75 ? 2 : 1
     }
 
-    private func signalStrengthIndicator(_ rssi: Int) -> some View {
-        let strength = rssi > -60 ? 3 : rssi > -75 ? 2 : 1
-        let color = rssi > -60 ? Color.green : rssi > -75 ? Color.orange : Color.red
+    private var color: Color {
+        rssi > -60 ? .green : rssi > -75 ? .orange : .red
+    }
 
-        return HStack(spacing: 3) {
-            ForEach(0..<3) { i in
-                RoundedRectangle(cornerRadius: 2)
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<3, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 1)
                     .fill(i < strength ? color : Color.white.opacity(0.15))
                     .frame(width: 4, height: CGFloat((i + 1) * 5))
             }

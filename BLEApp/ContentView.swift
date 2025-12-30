@@ -20,44 +20,29 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.03, green: 0.03, blue: 0.06),
-                    Color(red: 0.08, green: 0.08, blue: 0.12),
-                    Color(red: 0.05, green: 0.05, blue: 0.08),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            Color(red: 0.03, green: 0.03, blue: 0.06)
+                .ignoresSafeArea()
 
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     headerView
-                        .padding(.horizontal)
-                        .padding(.top, 8)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
 
                     if isMeasuring {
-                        liveMetricsDashboard
-                            .padding(.horizontal)
+                        measurementDashboard
+                            .padding(.horizontal, 20)
                     }
 
                     HeartRateChartView(data: ble.irData)
-                        .padding(.horizontal)
+                        .padding(.horizontal, 16)
 
                     OxygenChartView(data: ble.redData)
-                        .padding(.horizontal)
-
-                    if isMeasuring {
-                        progressSection
-                            .padding(.horizontal)
-                    }
-
-                    Spacer(minLength: 20)
+                        .padding(.horizontal, 16)
 
                     controlPanel
-                        .padding(.horizontal)
-                        .padding(.bottom, 32)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40)
                 }
             }
         }
@@ -78,46 +63,48 @@ struct ContentView: View {
 
     private var headerView: some View {
         VStack(spacing: 16) {
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "waveform.path.ecg.rectangle.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.cyan, .blue],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                    HStack(spacing: 10) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.cyan.opacity(0.2))
+                                .frame(width: 42, height: 42)
 
-                        Text("BİYOSİNYAL ANALİZ")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
+                            Image(systemName: "waveform.path.ecg.rectangle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.cyan)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("BİYOSİNYAL")
+                                .font(.system(size: 18, weight: .black, design: .rounded))
+                                .foregroundColor(.white)
+
+                            Text("Sağlık İzleme Sistemi")
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
                     }
-
-                    Text("Sağlık İzleme Sistemi")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
                 }
 
                 Spacer()
 
-                connectionStatusView
+                connectionBadge
             }
 
             if ble.isConnected {
-                deviceInfoCard
+                connectedDeviceCard
             }
         }
     }
 
-    private var connectionStatusView: some View {
+    private var connectionBadge: some View {
         Button(action: {
             HapticManager.shared.selection()
             showDevices = true
         }) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 if ble.isConnected {
                     PulseIndicator(color: .green)
                 } else {
@@ -128,28 +115,22 @@ struct ContentView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(ble.isConnected ? "BAĞLI" : "BAĞLI DEĞİL")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(ble.isConnected ? .green : .gray)
-
-                    if ble.isConnected {
-                        Text("Aktif")
-                            .font(.system(size: 9, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.4))
-                    }
                 }
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.white.opacity(0.3))
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 12)
                     .fill(Color.white.opacity(0.05))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 12)
                     .stroke(
                         ble.isConnected ? Color.green.opacity(0.3) : Color.white.opacity(0.1),
                         lineWidth: 1
@@ -158,28 +139,49 @@ struct ContentView: View {
         }
     }
 
-    private var deviceInfoCard: some View {
+    private var connectedDeviceCard: some View {
         HStack(spacing: 12) {
-            Image(systemName: "sensor.fill")
-                .font(.system(size: 18))
-                .foregroundColor(.cyan)
-                .frame(width: 36, height: 36)
-                .background(
-                    Circle()
-                        .fill(Color.cyan.opacity(0.15))
-                )
+            ZStack {
+                Circle()
+                    .fill(Color.cyan.opacity(0.15))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: "sensor.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.cyan)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(ble.targetPeripheral?.name ?? "Bilinmeyen Cihaz")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
 
-                Text("\(ble.irData.count + ble.redData.count) toplam veri noktası")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.4))
+                HStack(spacing: 8) {
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(Color.red.opacity(0.8))
+                            .frame(width: 5, height: 5)
+                        Text("\(ble.irData.count) IR")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(Color.cyan.opacity(0.8))
+                            .frame(width: 5, height: 5)
+                        Text("\(ble.redData.count) RED")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                }
             }
 
             Spacer()
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 22))
+                .foregroundColor(.green)
         }
         .padding(14)
         .background(
@@ -192,252 +194,140 @@ struct ContentView: View {
         )
     }
 
-    private var liveMetricsDashboard: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.6))
+    private var measurementDashboard: some View {
+        let currentRes = SignalProcessor.process(
+            times: ble.timeData, reds: ble.redData, irs: ble.irData)
 
-                Text("CANLI METRİKLER")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-
-                Spacer()
-
+        return VStack(spacing: 16) {
+            HStack {
                 HStack(spacing: 6) {
                     Circle()
                         .fill(Color.green)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 8, height: 8)
 
-                    Text("CANLI")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundColor(.green)
+                    Text("CANLI ÖLÇÜM")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.7))
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    Capsule()
-                        .fill(Color.green.opacity(0.15))
-                )
+
+                Spacer()
+
+                Text("AKTİF")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(Color.green.opacity(0.15))
+                    )
             }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                let currentRes = SignalProcessor.process(
-                    times: ble.timeData, reds: ble.redData, irs: ble.irData)
-
-                ModernMetricCard(
+            HStack(spacing: 14) {
+                LargeMetricCard(
                     title: "Nabız",
                     value: currentRes.bpm != nil ? "\(currentRes.bpm!)" : "---",
                     unit: "BPM",
                     color: .red,
                     icon: "heart.fill",
-                    note: currentRes.isSaturated
+                    subtitle: currentRes.isSaturated
                         ? "Doygunluk"
                         : (currentRes.bpm != nil
                             ? "Ölçülüyor" : (ble.irData.count > 10 ? "Analiz..." : "Bekleniyor"))
                 )
 
-                ModernMetricCard(
-                    title: "Oksijen",
+                CircularCountdownTimer(
+                    countdown: countdown,
+                    total: 30,
+                    color: .cyan
+                )
+            }
+
+            HStack(spacing: 10) {
+                SmallMetricCard(
+                    title: "SpO₂",
                     value: currentRes.spo2 != nil ? "\(currentRes.spo2!)" : "---",
                     unit: "%",
                     color: .cyan,
-                    icon: "lungs.fill",
-                    note: currentRes.spo2 != nil ? "Stabil" : "Hesaplanıyor"
+                    icon: "lungs.fill"
                 )
 
-                ModernMetricCard(
-                    title: "Perfüzyon",
+                SmallMetricCard(
+                    title: "PI",
                     value: String(format: "%.1f", currentRes.pi),
                     unit: "%",
                     color: .orange,
-                    icon: "drop.fill",
-                    note: currentRes.pi < 0.2 ? "Zayıf" : nil
+                    icon: "drop.fill"
                 )
 
-                ModernMetricCard(
-                    title: "Süre",
-                    value: "\(countdown)",
-                    unit: "sn",
-                    color: .purple,
-                    icon: "clock.fill",
-                    note: countdown < 10 ? "Bitiyor" : nil
+                SmallMetricCard(
+                    title: "Kalite",
+                    value: currentRes.pi > 0.5 ? "İyi" : "Düşük",
+                    unit: "",
+                    color: currentRes.pi > 0.5 ? .green : .yellow,
+                    icon: "chart.bar.fill"
                 )
             }
         }
-        .padding(16)
+        .padding(18)
         .background(
             RoundedRectangle(cornerRadius: 20)
                 .fill(Color.white.opacity(0.03))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.green.opacity(0.3), Color.blue.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-    }
-
-    private var progressSection: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("ÖLÇÜM İLERLEMESİ")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.5))
-
-                Spacer()
-
-                Text("\(Int((30 - countdown) * 100 / 30))%")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundColor(.cyan)
-            }
-
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.white.opacity(0.05))
-
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            LinearGradient(
-                                colors: [.cyan, .blue],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geometry.size.width * CGFloat(30 - countdown) / 30)
-                        .animation(.linear(duration: 1), value: countdown)
-                }
-            }
-            .frame(height: 8)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.03))
+                .stroke(Color.green.opacity(0.3), lineWidth: 1)
         )
     }
 
     private var controlPanel: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             if isMeasuring {
-                stopButton
-            } else {
-                startButton
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: ble.isConnected ? "checkmark.circle.fill" : "info.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(ble.isConnected ? .green : .orange)
-
-                Text(
-                    ble.isConnected
-                        ? "Sistem hazır • \(ble.irData.count) IR, \(ble.redData.count) Red örnek"
-                        : "Ölçüm için lütfen cihaz bağlayın"
+                AnimatedButton(
+                    title: "ÖLÇÜMÜ DURDUR",
+                    subtitle: "Verileri analiz et",
+                    icon: "stop.circle.fill",
+                    colors: [.red, .red.opacity(0.7)],
+                    action: stopMeasurement
                 )
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.5))
+            } else {
+                AnimatedButton(
+                    title: "ÖLÇÜMÜ BAŞLAT",
+                    subtitle: "30 saniyelik ölçüm",
+                    icon: "play.circle.fill",
+                    colors: ble.isConnected
+                        ? [.green, .green.opacity(0.7)]
+                        : [.gray.opacity(0.3), .gray.opacity(0.2)],
+                    action: startMeasurement
+                )
+                .disabled(!ble.isConnected)
+                .opacity(ble.isConnected ? 1 : 0.6)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(Color.white.opacity(0.03))
-            )
+
+            statusIndicator
         }
     }
 
-    private var startButton: some View {
-        Button(action: startMeasurement) {
-            HStack(spacing: 14) {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 26))
+    private var statusIndicator: some View {
+        HStack(spacing: 6) {
+            Image(systemName: ble.isConnected ? "checkmark.circle.fill" : "info.circle.fill")
+                .font(.system(size: 12))
+                .foregroundColor(ble.isConnected ? .green : .orange)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("ÖLÇÜMÜ BAŞLAT")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-
-                    Text("30 saniyelik ölçüm")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .opacity(0.8)
-                }
-
-                Spacer()
-
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 14, weight: .bold))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 18)
-            .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(
-                        LinearGradient(
-                            colors: ble.isConnected
-                                ? [Color.green, Color.green.opacity(0.8)]
-                                : [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+            Text(
+                ble.isConnected
+                    ? "Sistem hazır • Ölçüm için butona dokunun"
+                    : "Ölçüm için lütfen bir cihaz bağlayın"
             )
-            .shadow(
-                color: ble.isConnected ? Color.green.opacity(0.3) : Color.clear,
-                radius: 12,
-                y: 6
-            )
+            .font(.system(size: 11, weight: .medium, design: .rounded))
+            .foregroundColor(.white.opacity(0.5))
         }
-        .disabled(!ble.isConnected)
-    }
-
-    private var stopButton: some View {
-        Button(action: stopMeasurement) {
-            HStack(spacing: 14) {
-                Image(systemName: "stop.circle.fill")
-                    .font(.system(size: 26))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("ÖLÇÜMÜ DURDUR")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-
-                    Text("Verileri analiz et")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .opacity(0.8)
-                }
-
-                Spacer()
-
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 14, weight: .bold))
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 24)
-            .padding(.vertical, 18)
-            .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.red, Color.red.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-            .shadow(color: Color.red.opacity(0.3), radius: 12, y: 6)
-        }
-    }
-
-    private func calculatePI() -> String {
-        let res = SignalProcessor.process(times: ble.timeData, reds: ble.redData, irs: ble.irData)
-        return String(format: "%.1f", res.pi)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            Capsule()
+                .fill(Color.white.opacity(0.03))
+        )
     }
 
     private func startMeasurement() {
@@ -458,5 +348,51 @@ struct ContentView: View {
         isMeasuring = false
         result = SignalProcessor.process(times: ble.timeData, reds: ble.redData, irs: ble.irData)
         HapticManager.shared.success()
+    }
+}
+
+struct SmallMetricCard: View {
+    let title: String
+    let value: String
+    let unit: String
+    let color: Color
+    let icon: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(color)
+
+                Text(title)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+                    .textCase(.uppercase)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(color.opacity(0.25), lineWidth: 1)
+        )
     }
 }

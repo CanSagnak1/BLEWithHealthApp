@@ -12,13 +12,15 @@ struct ReportView: View {
     let result: AnalysisResult
     @Environment(\.dismiss) var dismiss
     @State private var showContent = false
+    @State private var showCheckmark = false
+    @State private var expandedSections: Set<String> = ["technical"]
 
     var body: some View {
         ZStack {
             LinearGradient(
                 colors: [
                     Color(red: 0.02, green: 0.02, blue: 0.05),
-                    Color(red: 0.06, green: 0.06, blue: 0.1),
+                    Color(red: 0.06, green: 0.06, blue: 0.10),
                     Color(red: 0.04, green: 0.04, blue: 0.07),
                 ],
                 startPoint: .topLeading,
@@ -26,27 +28,35 @@ struct ReportView: View {
             )
             .ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 24) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 28) {
                     headerSection
-                        .padding(.horizontal)
-                        .padding(.top, 20)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 24)
 
                     qualityBadgeSection
-                        .padding(.horizontal)
+                        .padding(.horizontal, 20)
 
                     keyMetricsSection
-                        .padding(.horizontal)
+                        .padding(.horizontal, 20)
 
-                    detailedAnalyticsSection
-                        .padding(.horizontal)
+                    perfusionGaugeSection
+                        .padding(.horizontal, 20)
 
-                    technicalMetricsSection
-                        .padding(.horizontal)
+                    CollapsibleSection(
+                        title: "TEKNİK DETAYLAR",
+                        icon: "cpu.fill",
+                        iconColor: .blue,
+                        isExpanded: expandedSections.contains("technical"),
+                        onToggle: { toggleSection("technical") }
+                    ) {
+                        technicalContent
+                    }
+                    .padding(.horizontal, 20)
 
                     actionButtonsSection
-                        .padding(.horizontal)
-                        .padding(.bottom, 32)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40)
                 }
             }
         }
@@ -56,11 +66,26 @@ struct ReportView: View {
             withAnimation(.easeOut(duration: 0.5)) {
                 showContent = true
             }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
+                    showCheckmark = true
+                }
+            }
+        }
+    }
+
+    private func toggleSection(_ id: String) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            if expandedSections.contains(id) {
+                expandedSections.remove(id)
+            } else {
+                expandedSections.insert(id)
+            }
         }
     }
 
     private var headerSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             HStack {
                 Spacer()
 
@@ -68,25 +93,23 @@ struct ReportView: View {
                     HapticManager.shared.selection()
                     dismiss()
                 }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 30))
-                        .foregroundColor(.white.opacity(0.5))
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.05))
+                            .frame(width: 44, height: 44)
+
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.6))
+                    }
                 }
+                .accessibilityLabel("Kapat")
             }
 
-            Image(systemName: "chart.bar.doc.horizontal.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.cyan, .blue],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .padding(.bottom, 8)
+            AnimatedSuccessIcon(isShowing: $showCheckmark)
 
-            Text("BİYOSİNYAL ANALİZ RAPORU")
-                .font(.system(size: 24, weight: .bold, design: .rounded))
+            Text("ANALİZ TAMAMLANDI")
+                .font(.system(size: 24, weight: .black, design: .rounded))
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
 
@@ -97,62 +120,69 @@ struct ReportView: View {
     }
 
     private var qualityBadgeSection: some View {
-        HStack(spacing: 16) {
-            Image(
-                systemName: result.isSaturated
-                    ? "sensor.tag.radiowaves.forward.fill"
-                    : (result.pi > 0.5
-                        ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-            )
-            .font(.system(size: 24))
-            .foregroundColor(result.isSaturated ? .red : (result.pi > 0.5 ? .green : .orange))
+        HStack(spacing: 18) {
+            ZStack {
+                Circle()
+                    .fill(qualityColor.opacity(0.15))
+                    .frame(width: 60, height: 60)
 
-            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: qualityIcon)
+                    .font(.system(size: 28))
+                    .foregroundColor(qualityColor)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Ölçüm Kalitesi")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.6))
 
                 Text(result.quality)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(
-                        result.isSaturated ? .red : (result.pi > 0.5 ? .green : .orange))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(qualityColor)
 
                 Text(result.status)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.5))
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                Text("Güven Skoru")
+                Text("Güven")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.white.opacity(0.5))
 
                 Text("\(Int(min(result.pi * 10, 100)))%")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .black, design: .rounded))
                     .foregroundColor(.cyan)
             }
         }
         .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.05))
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Color.white.opacity(0.04))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 22)
                 .stroke(
                     LinearGradient(
-                        colors: [
-                            result.pi > 0.5 ? Color.green.opacity(0.4) : Color.orange.opacity(0.4),
-                            result.pi > 0.5 ? Color.green.opacity(0.1) : Color.orange.opacity(0.1),
-                        ],
+                        colors: [qualityColor.opacity(0.4), qualityColor.opacity(0.1)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
                     lineWidth: 1.5
                 )
         )
+    }
+
+    private var qualityColor: Color {
+        result.isSaturated ? .red : (result.pi > 0.5 ? .green : .orange)
+    }
+
+    private var qualityIcon: String {
+        result.isSaturated
+            ? "sensor.tag.radiowaves.forward.fill"
+            : (result.pi > 0.5 ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
     }
 
     private var keyMetricsSection: some View {
@@ -169,370 +199,146 @@ struct ReportView: View {
                 Spacer()
             }
 
-            HStack(spacing: 16) {
-                heartRateCard
-                oxygenCard
-            }
-        }
-    }
-
-    private var heartRateCard: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.red, .pink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                Text("NABIZ")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-            }
-
-            VStack(spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(result.bpm.map { "\($0)" } ?? "---")
-                        .font(.system(size: 48, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-
-                    Text("BPM")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                }
-
-                Text(result.bpmNote)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.red.opacity(0.8))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color.red.opacity(0.15))
-                    )
-            }
-
-            if let bpm = result.bpm {
-                healthInterpretation(for: bpm)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        colors: [.red.opacity(0.4), .pink.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 2
+            VStack(spacing: 14) {
+                ReportMetricCard(
+                    title: "NABIZ",
+                    value: result.bpm.map { "\($0)" } ?? "---",
+                    unit: "BPM",
+                    icon: "heart.fill",
+                    color: .red,
+                    interpretation: result.bpm.map { healthMessage(for: $0) },
+                    interpretationColor: result.bpm.map { healthColor(for: $0) }
                 )
-        )
-        .shadow(color: Color.red.opacity(0.15), radius: 12, x: 0, y: 6)
-    }
 
-    private var oxygenCard: some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 8) {
-                Image(systemName: "lungs.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.cyan, .blue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                Text("OKSİJEN")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-            }
-
-            VStack(spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(result.spo2.map { "\($0)" } ?? "---")
-                        .font(.system(size: 48, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-
-                    Text("%")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.5))
-                }
-
-                Text(result.spo2Note)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.cyan.opacity(0.8))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(Color.cyan.opacity(0.15))
-                    )
-            }
-
-            if let spo2 = result.spo2 {
-                oxygenInterpretation(for: spo2)
+                ReportMetricCard(
+                    title: "OKSİJEN DOYGUNLUĞU",
+                    value: result.spo2.map { "\($0)" } ?? "---",
+                    unit: "%",
+                    icon: "lungs.fill",
+                    color: .cyan,
+                    interpretation: result.spo2.map { oxygenMessage(for: $0) },
+                    interpretationColor: result.spo2.map { oxygenColor(for: $0) }
+                )
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    LinearGradient(
-                        colors: [.cyan.opacity(0.4), .blue.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 2
-                )
-        )
-        .shadow(color: Color.cyan.opacity(0.15), radius: 12, x: 0, y: 6)
     }
 
-    private var detailedAnalyticsSection: some View {
+    private var perfusionGaugeSection: some View {
         VStack(spacing: 16) {
             HStack(spacing: 8) {
-                Image(systemName: "chart.xyaxis.line")
+                Image(systemName: "drop.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(.purple)
+                    .foregroundColor(.orange)
 
-                Text("DETAYLI ANALİZ")
+                Text("PERFÜZYON İNDEKSİ")
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundColor(.white.opacity(0.7))
 
                 Spacer()
             }
 
-            perfusionIndexCard
-        }
-    }
+            HStack(spacing: 24) {
+                PIGaugeView(value: result.pi)
 
-    private var perfusionIndexCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "drop.fill")
-                            .font(.system(size: 20))
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Değer")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.5))
+
+                        Text(String(format: "%.2f%%", result.pi))
+                            .font(.system(size: 28, weight: .black, design: .rounded))
                             .foregroundColor(.orange)
-
-                        Text("Perfüzyon İndeksi (PI)")
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white.opacity(0.8))
                     }
 
-                    Text("Kan akış kalitesi göstergesi")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.4))
-                }
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(result.pi > 0.5 ? Color.green : Color.orange)
+                            .frame(width: 8, height: 8)
 
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(String(format: "%.2f%%", result.pi))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.orange)
-
-                    Text(result.pi > 0.5 ? "İyi" : "Düşük")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundColor(result.pi > 0.5 ? .green : .orange)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill((result.pi > 0.5 ? Color.green : Color.orange).opacity(0.15))
+                        Text(
+                            result.pi > 1.0
+                                ? "Mükemmel"
+                                : result.pi > 0.5
+                                    ? "İyi" : result.pi > 0.2 ? "Kabul Edilebilir" : "Zayıf"
                         )
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundColor(result.pi > 0.5 ? .green : .orange)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill((result.pi > 0.5 ? Color.green : Color.orange).opacity(0.15))
+                    )
                 }
-            }
-
-            Divider()
-                .background(Color.white.opacity(0.1))
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Yorumlama Kılavuzu")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-
-                piInterpretationGuide
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
-    }
-
-    private var piInterpretationGuide: some View {
-        VStack(spacing: 8) {
-            InterpretationRow(
-                icon: "checkmark.circle.fill",
-                color: .green,
-                range: "> 1.0%",
-                meaning: "Mükemmel sinyal kalitesi"
-            )
-            InterpretationRow(
-                icon: "checkmark.circle",
-                color: .green,
-                range: "0.5% - 1.0%",
-                meaning: "İyi sinyal kalitesi"
-            )
-            InterpretationRow(
-                icon: "exclamationmark.circle",
-                color: .orange,
-                range: "0.2% - 0.5%",
-                meaning: "Kabul edilebilir sinyal"
-            )
-            InterpretationRow(
-                icon: "xmark.circle",
-                color: .red,
-                range: "< 0.2%",
-                meaning: "Zayıf sinyal - tekrar deneyin"
-            )
-        }
-    }
-
-    private var technicalMetricsSection: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 8) {
-                Image(systemName: "cpu.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.blue)
-
-                Text("TEKNİK DETAYLAR")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.7))
 
                 Spacer()
             }
-
-            VStack(spacing: 12) {
-                TechnicalMetricRow(
-                    label: "Sinyal Tipi",
-                    value: "PPG (Fotopletysmografi)",
-                    icon: "waveform.path.ecg"
-                )
-                TechnicalMetricRow(
-                    label: "Analiz Durumu",
-                    value: result.status,
-                    icon: "checkmark.shield.fill"
-                )
-                TechnicalMetricRow(
-                    label: "Güvenilirlik",
-                    value: result.quality,
-                    icon: "medal.fill"
-                )
-                TechnicalMetricRow(
-                    label: "İşlem Zamanı",
-                    value: currentDateTime(),
-                    icon: "clock.fill"
-                )
-            }
-            .padding(16)
+            .padding(20)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 20)
                     .fill(Color.white.opacity(0.03))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
             )
+        }
+    }
+
+    private var technicalContent: some View {
+        VStack(spacing: 12) {
+            TechnicalRow(
+                icon: "waveform.path.ecg", label: "Sinyal Tipi", value: "PPG (Fotopletysmografi)")
+            TechnicalRow(
+                icon: "checkmark.shield.fill", label: "Analiz Durumu", value: result.status)
+            TechnicalRow(icon: "medal.fill", label: "Güvenilirlik", value: result.quality)
+            TechnicalRow(icon: "clock.fill", label: "İşlem Zamanı", value: currentDateTime())
         }
     }
 
     private var actionButtonsSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             Button(action: {
                 HapticManager.shared.success()
                 dismiss()
             }) {
-                HStack(spacing: 12) {
+                HStack(spacing: 14) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22))
+                        .font(.system(size: 24))
 
                     Text("RAPORU KAPAT")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
 
                     Spacer()
-
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 12, weight: .bold))
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 18)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
+                    RoundedRectangle(cornerRadius: 18)
                         .fill(
                             LinearGradient(
-                                colors: [Color.blue, Color.blue.opacity(0.8)],
+                                colors: [.blue, .blue.opacity(0.7)],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
                         )
                 )
-                .shadow(color: Color.blue.opacity(0.3), radius: 12, y: 6)
+                .shadow(color: Color.blue.opacity(0.4), radius: 16, y: 8)
+            }
+
+            HStack(spacing: 12) {
+                ShareButton(icon: "square.and.arrow.up", label: "Paylaş")
+                ShareButton(icon: "doc.fill", label: "PDF")
             }
 
             Text("Sağlık verileriniz sadece bu cihazda tutulur")
-                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.3))
                 .multilineTextAlignment(.center)
-        }
-    }
-
-    private func healthInterpretation(for bpm: Int) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Divider()
-                .background(Color.white.opacity(0.1))
-                .padding(.vertical, 4)
-
-            HStack(spacing: 6) {
-                Image(systemName: healthIcon(for: bpm))
-                    .font(.system(size: 12))
-                    .foregroundColor(healthColor(for: bpm))
-
-                Text(healthMessage(for: bpm))
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.7))
-            }
-        }
-    }
-
-    private func oxygenInterpretation(for spo2: Int) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Divider()
-                .background(Color.white.opacity(0.1))
-                .padding(.vertical, 4)
-
-            HStack(spacing: 6) {
-                Image(systemName: oxygenIcon(for: spo2))
-                    .font(.system(size: 12))
-                    .foregroundColor(oxygenColor(for: spo2))
-
-                Text(oxygenMessage(for: spo2))
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.7))
-            }
+                .padding(.top, 8)
         }
     }
 
@@ -541,14 +347,6 @@ struct ReportView: View {
         formatter.dateFormat = "dd MMM yyyy, HH:mm"
         formatter.locale = Locale(identifier: "tr_TR")
         return formatter.string(from: Date())
-    }
-
-    private func healthIcon(for bpm: Int) -> String {
-        switch bpm {
-        case 60...100: return "checkmark.circle.fill"
-        case 50..<60, 100...120: return "info.circle.fill"
-        default: return "exclamationmark.triangle.fill"
-        }
     }
 
     private func healthColor(for bpm: Int) -> Color {
@@ -561,18 +359,10 @@ struct ReportView: View {
 
     private func healthMessage(for bpm: Int) -> String {
         switch bpm {
-        case 60...100: return "Normal dinlenme nabzı aralığında"
-        case 50..<60: return "Dinlenme nabzı normalin altında"
-        case 100...120: return "Dinlenme nabzı yüksek"
-        default: return "Olağandışı değer - tekrar ölçün"
-        }
-    }
-
-    private func oxygenIcon(for spo2: Int) -> String {
-        switch spo2 {
-        case 95...100: return "checkmark.circle.fill"
-        case 90..<95: return "info.circle.fill"
-        default: return "exclamationmark.triangle.fill"
+        case 60...100: return "Normal dinlenme nabzı"
+        case 50..<60: return "Normalin altında"
+        case 100...120: return "Yüksek nabız"
+        default: return "Olağandışı değer"
         }
     }
 
@@ -586,62 +376,283 @@ struct ReportView: View {
 
     private func oxygenMessage(for spo2: Int) -> String {
         switch spo2 {
-        case 95...100: return "Normal oksijen doygunluğu"
-        case 90..<95: return "Hafif düşük oksijen seviyesi"
-        default: return "Düşük oksijen - doktora danışın"
+        case 95...100: return "Normal oksijen seviyesi"
+        case 90..<95: return "Hafif düşük"
+        default: return "Düşük - dikkat"
         }
     }
 }
 
-struct InterpretationRow: View {
-    let icon: String
-    let color: Color
-    let range: String
-    let meaning: String
+struct AnimatedSuccessIcon: View {
+    @Binding var isShowing: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 12))
-                .foregroundColor(color)
-                .frame(width: 20)
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [.cyan.opacity(0.2), .blue.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 90, height: 90)
+                .scaleEffect(isShowing ? 1 : 0.5)
+                .opacity(isShowing ? 1 : 0)
 
-            Text(range)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundColor(color)
-                .frame(width: 80, alignment: .leading)
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 54))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.cyan, .blue],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .scaleEffect(isShowing ? 1 : 0.3)
+                .rotationEffect(.degrees(isShowing ? 0 : -180))
+        }
+    }
+}
 
-            Text(meaning)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.6))
+struct ReportMetricCard: View {
+    let title: String
+    let value: String
+    let unit: String
+    let icon: String
+    let color: Color
+    let interpretation: String?
+    let interpretationColor: Color?
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 56, height: 56)
+
+                Image(systemName: icon)
+                    .font(.system(size: 26))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [color, color.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(value)
+                        .font(.system(size: 36, weight: .black, design: .rounded))
+                        .foregroundColor(.white)
+
+                    Text(unit)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+
+                if let interpretation = interpretation, let interpColor = interpretationColor {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(interpColor)
+                            .frame(width: 6, height: 6)
+
+                        Text(interpretation)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundColor(interpColor)
+                    }
+                }
+            }
 
             Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(
+                    LinearGradient(
+                        colors: [color.opacity(0.4), color.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value) \(unit)")
     }
 }
 
-struct TechnicalMetricRow: View {
-    let label: String
-    let value: String
-    let icon: String
+struct PIGaugeView: View {
+    let value: Double
+    @State private var animatedValue: Double = 0
+
+    private var progress: Double {
+        min(animatedValue / 2.0, 1.0)
+    }
+
+    private var gaugeColor: Color {
+        if value > 1.0 { return .green }
+        if value > 0.5 { return .cyan }
+        if value > 0.2 { return .orange }
+        return .red
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.1), lineWidth: 10)
+                .frame(width: 100, height: 100)
+
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    AngularGradient(
+                        colors: [gaugeColor.opacity(0.3), gaugeColor],
+                        center: .center,
+                        startAngle: .degrees(0),
+                        endAngle: .degrees(360 * progress)
+                    ),
+                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                )
+                .frame(width: 100, height: 100)
+                .rotationEffect(.degrees(-90))
+
+            VStack(spacing: 2) {
+                Image(systemName: "drop.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(gaugeColor)
+
+                Text("PI")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+            }
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.0)) {
+                animatedValue = value
+            }
+        }
+        .accessibilityLabel("Perfüzyon indeksi: \(String(format: "%.2f", value)) yüzde")
+    }
+}
+
+struct CollapsibleSection<Content: View>: View {
+    let title: String
+    let icon: String
+    let iconColor: Color
+    let isExpanded: Bool
+    let onToggle: () -> Void
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onToggle) {
+                HStack(spacing: 10) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14))
+                        .foregroundColor(iconColor)
+
+                    Text(title)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.7))
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white.opacity(0.4))
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: isExpanded ? 16 : 16)
+                        .fill(Color.white.opacity(0.03))
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                content
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.02))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    )
+                    .padding(.top, 2)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+}
+
+struct TechnicalRow: View {
+    let icon: String
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 14))
                 .foregroundColor(.cyan)
                 .frame(width: 24)
 
             Text(label)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.5))
 
             Spacer()
 
             Text(value)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.8))
+                .lineLimit(1)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct ShareButton: View {
+    let icon: String
+    let label: String
+
+    var body: some View {
+        Button(action: {
+            HapticManager.shared.selection()
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+
+                Text(label)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+            }
+            .foregroundColor(.white.opacity(0.7))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.white.opacity(0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
         }
     }
 }
