@@ -12,7 +12,9 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject var ble = BLEManager()
+    @StateObject var measurementStore = MeasurementStore()
     @State var showDevices = false
+    @State var showHistory = false
     @State var isMeasuring = false
     @State var countdown = 30
     @State var result: AnalysisResult?
@@ -48,6 +50,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showDevices) {
             DevicePickerView(ble: ble)
+        }
+        .sheet(isPresented: $showHistory) {
+            HistoryView(store: measurementStore)
         }
         .sheet(item: $result) { r in
             ReportView(result: r)
@@ -90,12 +95,48 @@ struct ContentView: View {
 
                 Spacer()
 
-                connectionBadge
+                HStack(spacing: 10) {
+                    historyButton
+                    connectionBadge
+                }
             }
 
             if ble.isConnected {
                 connectedDeviceCard
             }
+        }
+    }
+
+    private var historyButton: some View {
+        Button(action: {
+            HapticManager.shared.selection()
+            showHistory = true
+        }) {
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.15))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(.purple)
+            }
+            .overlay(
+                Group {
+                    if measurementStore.measurements.count > 0 {
+                        Text("\(min(measurementStore.measurements.count, 99))")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color.purple)
+                            )
+                            .offset(x: 14, y: -14)
+                    }
+                }
+            )
         }
     }
 
@@ -258,7 +299,6 @@ struct ContentView: View {
                 )
             }
 
-            // HRV Section
             if currentRes.rmssd != nil || currentRes.sdnn != nil {
                 HRVMetricsRow(rmssd: currentRes.rmssd, sdnn: currentRes.sdnn)
             }
@@ -349,7 +389,14 @@ struct ContentView: View {
         HapticManager.shared.impact(.medium)
         ble.sendCommand("STOP")
         isMeasuring = false
-        result = SignalProcessor.process(times: ble.timeData, reds: ble.redData, irs: ble.irData)
+
+        let analysisResult = SignalProcessor.process(
+            times: ble.timeData, reds: ble.redData, irs: ble.irData)
+
+        // Save measurement to history
+        measurementStore.save(analysisResult)
+
+        result = analysisResult
         HapticManager.shared.success()
     }
 }
