@@ -170,7 +170,7 @@ struct ContentView: View {
                         Circle()
                             .fill(Color.cyan.opacity(0.8))
                             .frame(width: 5, height: 5)
-                        Text("\(ble.redData.count) RED")
+                        Text("\(ble.dataRate) Hz")
                             .font(.system(size: 10, weight: .medium, design: .rounded))
                             .foregroundColor(.white.opacity(0.5))
                     }
@@ -212,15 +212,7 @@ struct ContentView: View {
 
                 Spacer()
 
-                Text("AKTİF")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundColor(.green)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(Color.green.opacity(0.15))
-                    )
+                SignalQualityBadge(quality: currentRes.signalQuality)
             }
 
             HStack(spacing: 14) {
@@ -230,10 +222,7 @@ struct ContentView: View {
                     unit: "BPM",
                     color: .red,
                     icon: "heart.fill",
-                    subtitle: currentRes.isSaturated
-                        ? "Doygunluk"
-                        : (currentRes.bpm != nil
-                            ? "Ölçülüyor" : (ble.irData.count > 10 ? "Analiz..." : "Bekleniyor"))
+                    subtitle: currentRes.bpmNote
                 )
 
                 CircularCountdownTimer(
@@ -261,12 +250,17 @@ struct ContentView: View {
                 )
 
                 SmallMetricCard(
-                    title: "Kalite",
-                    value: currentRes.pi > 0.5 ? "İyi" : "Düşük",
+                    title: "Stres",
+                    value: currentRes.stressLevel.rawValue,
                     unit: "",
-                    color: currentRes.pi > 0.5 ? .green : .yellow,
-                    icon: "chart.bar.fill"
+                    color: stressColor(currentRes.stressLevel),
+                    icon: "brain.head.profile"
                 )
+            }
+
+            // HRV Section
+            if currentRes.rmssd != nil || currentRes.sdnn != nil {
+                HRVMetricsRow(rmssd: currentRes.rmssd, sdnn: currentRes.sdnn)
             }
         }
         .padding(18)
@@ -278,6 +272,15 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(Color.green.opacity(0.3), lineWidth: 1)
         )
+    }
+
+    private func stressColor(_ level: StressLevel) -> Color {
+        switch level {
+        case .low: return .green
+        case .moderate: return .yellow
+        case .high: return .red
+        case .unknown: return .gray
+        }
     }
 
     private var controlPanel: some View {
@@ -392,6 +395,105 @@ struct SmallMetricCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
+                .stroke(color.opacity(0.25), lineWidth: 1)
+        )
+    }
+}
+
+struct SignalQualityBadge: View {
+    let quality: Int
+
+    private var color: Color {
+        if quality >= 70 { return .green }
+        if quality >= 40 { return .yellow }
+        return .red
+    }
+
+    private var text: String {
+        if quality >= 70 { return "İYİ" }
+        if quality >= 40 { return "ORTA" }
+        return "ZAYIF"
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+
+            Text("\(text) %\(quality)")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            Capsule()
+                .fill(color.opacity(0.15))
+        )
+    }
+}
+
+struct HRVMetricsRow: View {
+    let rmssd: Double?
+    let sdnn: Double?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            HRVBadge(
+                label: "RMSSD",
+                value: rmssd.map { String(format: "%.0f", $0) } ?? "---",
+                unit: "ms",
+                color: .purple
+            )
+
+            HRVBadge(
+                label: "SDNN",
+                value: sdnn.map { String(format: "%.0f", $0) } ?? "---",
+                unit: "ms",
+                color: .indigo
+            )
+        }
+    }
+}
+
+struct HRVBadge: View {
+    let label: String
+    let value: String
+    let unit: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "waveform.path")
+                .font(.system(size: 12))
+                .foregroundColor(color)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(value)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+
+                    Text(unit)
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
                 .stroke(color.opacity(0.25), lineWidth: 1)
         )
     }
